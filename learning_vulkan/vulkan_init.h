@@ -9,6 +9,7 @@
 #include <optional>
 #include <stdexcept>
 #include <vector>
+#include <set>
 
 #define VK_FAILED(tested) (tested != VK_SUCCESS)
 
@@ -18,7 +19,13 @@ using std::end;
 using std::vector;
 
 using queue_family_index_t = uint32_t;
-using queue_family_indices = std::optional<queue_family_index_t>;
+using queue_family_indices = struct 
+{
+    std::optional<queue_family_index_t> graphicsFamily;
+    std::optional<queue_family_index_t> presentationFamily;
+
+    bool isComplete() { return graphicsFamily.has_value() && presentationFamily.has_value(); }
+};
 
 vector<char const*> const validationLayers =
 {
@@ -36,6 +43,8 @@ VkInstance createInstance();
 
 void check_specified_validation_layers_supported();
 
-VkPhysicalDevice pickPhysicalDevice(VkInstance const& vulkanInstance, VkQueueFlagBits const requirements);
+VkPhysicalDevice pickPhysicalDevice(VkInstance const& vulkanInstance, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements);
 
-std::pair<VkDevice, queue_family_index_t> createLogicalDevice(VkPhysicalDevice const& physicalDevice, VkQueueFlagBits const requirements);
+std::tuple<VkDevice, queue_family_index_t, queue_family_index_t> createLogicalDevice(VkPhysicalDevice const& physicalDevice, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements);
+
+VkSurfaceKHR createSurface(VkInstance const& instance, GLFWwindow* window);

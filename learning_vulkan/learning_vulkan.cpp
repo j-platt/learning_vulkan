@@ -6,6 +6,8 @@ class HelloTriangleApplication {
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice logicalDevice;
     VkQueue graphicsQueue;
+    VkQueue presentationQueue;
+    VkSurfaceKHR surface;
 
     static constexpr uint32_t windowWidth = 800;
     static constexpr uint32_t windowHeight = 600;
@@ -23,6 +25,7 @@ public:
 	~HelloTriangleApplication() 
     {
         vkDestroyDevice(logicalDevice, nullptr);
+        vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
         vkDestroyInstance(vulkanInstance, nullptr);
         glfwDestroyWindow(window);
         glfwTerminate();
@@ -31,10 +34,12 @@ public:
 private:
 	void initVulkan() {
         vulkanInstance = createInstance();
-        physicalDevice = pickPhysicalDevice(vulkanInstance, queueRequirements);
-        auto const[logicalDeviceResult, queueIndices] = createLogicalDevice(physicalDevice, queueRequirements);
+        surface = createSurface(vulkanInstance, window);
+        physicalDevice = pickPhysicalDevice(vulkanInstance, surface, queueRequirements);
+        auto const[logicalDeviceResult, graphicsQueueIndex, presentationQueueIndex] = createLogicalDevice(physicalDevice, surface, queueRequirements);
         logicalDevice = logicalDeviceResult;
-        vkGetDeviceQueue(logicalDevice, queueIndices, 0, &graphicsQueue);
+        vkGetDeviceQueue(logicalDevice, graphicsQueueIndex, 0, &graphicsQueue);
+        vkGetDeviceQueue(logicalDevice, presentationQueueIndex, 0, &presentationQueue);
 	}
 
     void mainLoop() {

@@ -43,8 +43,8 @@ VkInstance createInstance();
 
 void check_specified_validation_layers_supported();
 
-VkPhysicalDevice pickPhysicalDevice(VkInstance const& vulkanInstance, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements);
+VkPhysicalDevice pickPhysicalDevice(VkInstance const& vulkanInstance, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements, vector<char const*> const& requiredExtensions);
 
-std::tuple<VkDevice, queue_family_index_t, queue_family_index_t> createLogicalDevice(VkPhysicalDevice const& physicalDevice, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements);
+std::tuple<VkDevice, queue_family_index_t, queue_family_index_t> createLogicalDevice(VkPhysicalDevice const& physicalDevice, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements, vector<const char*> const& deviceExtensions);
 
 VkSurfaceKHR createSurface(VkInstance const& instance, GLFWwindow* window);

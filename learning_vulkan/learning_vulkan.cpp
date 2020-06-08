@@ -12,9 +12,10 @@ class HelloTriangleApplication {
     static constexpr uint32_t windowWidth = 800;
     static constexpr uint32_t windowHeight = 600;
     static constexpr VkQueueFlagBits queueRequirements = VK_QUEUE_GRAPHICS_BIT;
+    static vector<char const*> const requiredExtensions;
 
 public:
-	HelloTriangleApplication() : window(glfwCreateWindow(800, 600, "Vulkan", nullptr, nullptr)) {}
+	HelloTriangleApplication() : window(glfwCreateWindow(800, 600, "Vulkan", nullptr, nullptr)){}
 
 	void run() {
 		initWindow();
@@ -35,8 +36,8 @@ private:
 	void initVulkan() {
         vulkanInstance = createInstance();
         surface = createSurface(vulkanInstance, window);
-        physicalDevice = pickPhysicalDevice(vulkanInstance, surface, queueRequirements);
-        auto const[logicalDeviceResult, graphicsQueueIndex, presentationQueueIndex] = createLogicalDevice(physicalDevice, surface, queueRequirements);
+        physicalDevice = pickPhysicalDevice(vulkanInstance, surface, queueRequirements, requiredExtensions);
+        auto const[logicalDeviceResult, graphicsQueueIndex, presentationQueueIndex] = createLogicalDevice(physicalDevice, surface, queueRequirements, requiredExtensions);
         logicalDevice = logicalDeviceResult;
         vkGetDeviceQueue(logicalDevice, graphicsQueueIndex, 0, &graphicsQueue);
         vkGetDeviceQueue(logicalDevice, presentationQueueIndex, 0, &presentationQueue);
@@ -59,6 +60,8 @@ private:
         window = glfwCreateWindow(windowWidth, windowHeight, "Vulkan Window", nullptr, nullptr);
 	}
 };
+
+std::vector<char const*> const HelloTriangleApplication::requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
 int main() {
 	HelloTriangleApplication app;

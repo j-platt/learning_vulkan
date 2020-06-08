@@ -124,17 +124,34 @@ queue_family_indices findQueueFamilies(VkPhysicalDevice const& device, VkQueueFl
     return reply;
 }
 
-bool deviceIsSuitable(VkPhysicalDevice const& toCheck, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements)
+bool checkDeviceExtensionSupport(VkPhysicalDevice const& toCheck, vector<char const*> requiredExtensions)
+{
+    uint32_t extensionCount;
+    vkEnumerateDeviceExtensionProperties(toCheck, nullptr, &extensionCount, nullptr);
+    vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(toCheck, nullptr, &extensionCount, availableExtensions.data());
+
+    std::set<std::string> reqExtSet(begin(requiredExtensions), end(requiredExtensions));
+    for(VkExtensionProperties const& extension : availableExtensions)
+    {
+        reqExtSet.erase(extension.extensionName);
+    }
+    return reqExtSet.empty();
+}
+
+bool deviceIsSuitable(VkPhysicalDevice const& toCheck, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements, vector<char const*> requiredExtensions)
 {
     //VkPhysicalDeviceProperties about;
     //vkGetPhysicalDeviceProperties(toCheck, &about);
 
     //VkPhysicalDeviceFeatures features;
     //vkGetPhysicalDeviceFeatures(toCheck, &features);
+
+    bool extensionsSupported = checkDeviceExtensionSupport(toCheck, requiredExtensions);
     return findQueueFamilies(toCheck, requirements, surface).isComplete();
 }
 
-VkPhysicalDevice pickPhysicalDevice(VkInstance const& vulkanInstance, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements)
+VkPhysicalDevice pickPhysicalDevice(VkInstance const& vulkanInstance, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements, vector<char const*> const& requiredExtensions)
 {
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     uint32_t deviceCount = 0;
@@ -148,7 +165,7 @@ VkPhysicalDevice pickPhysicalDevice(VkInstance const& vulkanInstance, VkSurfaceK
 
     for(VkPhysicalDevice const& device : devices)
     {
-        if(deviceIsSuitable(device, surface, requirements))
+        if(deviceIsSuitable(device, surface, requirements, requiredExtensions))
         {
             physicalDevice = device;
             break;
@@ -162,7 +179,7 @@ VkPhysicalDevice pickPhysicalDevice(VkInstance const& vulkanInstance, VkSurfaceK
     return physicalDevice;
 }
 
-std::tuple<VkDevice, queue_family_index_t, queue_family_index_t> createLogicalDevice(VkPhysicalDevice const& physicalDevice, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements)
+std::tuple<VkDevice, queue_family_index_t, queue_family_index_t> createLogicalDevice(VkPhysicalDevice const& physicalDevice, VkSurfaceKHR const& surface, VkQueueFlagBits const requirements, vector<const char*> const& deviceExtensions)
 {
     queue_family_indices indices = findQueueFamilies(physicalDevice, requirements, surface);
     if(!indices.isComplete())
@@ -170,7 +187,7 @@ std::tuple<VkDevice, queue_family_index_t, queue_family_index_t> createLogicalDe
         throw std::runtime_error("Failed to find the required queue families.");
     }
 
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<queue_family_index_t> uniqueQueueFamilies =
     {
         indices.graphicsFamily.value(),
@@ -195,6 +212,8 @@ std::tuple<VkDevice, queue_family_index_t, queue_family_index_t> createLogicalDe
     deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
     deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
+    deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+    deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
     VkDevice logicalDevice;
     if(VK_FAILED(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice)))

@@ -31,9 +31,12 @@
 *.out
 *.app
 
+
 # MSVC
 *.ipch
 *.VC.db
+*.db-shm
+*.db-wal
 *.vcxproj.user
 *.VC.opendb
 *.pdb

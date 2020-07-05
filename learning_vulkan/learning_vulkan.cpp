@@ -8,23 +8,33 @@ class HelloTriangleApplication {
     VkQueue graphicsQueue;
     VkQueue presentationQueue;
     VkSurfaceKHR surface;
-
-    static constexpr uint32_t windowWidth = 800;
-    static constexpr uint32_t windowHeight = 600;
-    static constexpr VkQueueFlagBits queueRequirements = VK_QUEUE_GRAPHICS_BIT;
-    static vector<char const*> const requiredExtensions;
+    VkSwapchainKHR swapChain;
+    image_list swapChainImages;
+    VkFormat swapChainImageFormat;
+    VkExtent2D swapChainExtent;
+    image_views swapChainImageViews;
+    VkPipeline graphicsPipeline;
+    VkRenderPass renderPass;
+    VkPipelineLayout pipelineLayout;
 
 public:
-	HelloTriangleApplication() : window(glfwCreateWindow(800, 600, "Vulkan", nullptr, nullptr)){}
-
-	void run() {
-		initWindow();
-		initVulkan();
-		mainLoop();
-	}
+	HelloTriangleApplication() : window(glfwCreateWindow(800, 600, "Vulkan", nullptr, nullptr))
+    {
+        initWindow();
+        initVulkan();
+        mainLoop();
+    }
 
 	~HelloTriangleApplication() 
     {
+        vkDestroyPipeline(logicalDevice, graphicsPipeline, nullptr);
+        vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
+        vkDestroyRenderPass(logicalDevice, renderPass, nullptr);
+        for(VkImageView const& imageView : swapChainImageViews)
+        {
+            vkDestroyImageView(logicalDevice, imageView, nullptr);
+        }
+        vkDestroySwapchainKHR(logicalDevice, swapChain, nullptr);
         vkDestroyDevice(logicalDevice, nullptr);
         vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
         vkDestroyInstance(vulkanInstance, nullptr);
@@ -37,10 +47,26 @@ private:
         vulkanInstance = createInstance();
         surface = createSurface(vulkanInstance, window);
         physicalDevice = pickPhysicalDevice(vulkanInstance, surface, queueRequirements, requiredExtensions);
+        
         auto const[logicalDeviceResult, graphicsQueueIndex, presentationQueueIndex] = createLogicalDevice(physicalDevice, surface, queueRequirements, requiredExtensions);
         logicalDevice = logicalDeviceResult;
         vkGetDeviceQueue(logicalDevice, graphicsQueueIndex, 0, &graphicsQueue);
         vkGetDeviceQueue(logicalDevice, presentationQueueIndex, 0, &presentationQueue);
+        
+        swap_chain_support_details swapChainSupport = querySwapChainSupport(physicalDevice, surface);
+        swapChain = createSwapChain(swapChainSupport, surface, physicalDevice, logicalDevice);
+        uint32_t imageCount;
+        vkGetSwapchainImagesKHR(logicalDevice, swapChain, &imageCount, nullptr);
+        swapChainImages.resize(imageCount);
+        vkGetSwapchainImagesKHR(logicalDevice, swapChain, &imageCount, swapChainImages.data());
+        swapChainImageFormat = chooseSwapSurfaceFormat(swapChainSupport.formats).format;
+        swapChainExtent = chooseSwapExtent(swapChainSupport.capabilities);
+        swapChainImageViews = createImageViews(swapChainImages, swapChainImageFormat, logicalDevice);
+
+        renderPass = createRenderPass(logicalDevice, swapChainImageFormat);
+        auto const[graphicsPipelineResult, pipelineLayoutResult] = createGraphicsPipeline(logicalDevice, swapChainExtent, renderPass);
+        graphicsPipeline = graphicsPipelineResult;
+        pipelineLayout = pipelineLayoutResult;
 	}
 
     void mainLoop() {
@@ -61,14 +87,11 @@ private:
 	}
 };
 
-std::vector<char const*> const HelloTriangleApplication::requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-
 int main() {
-	HelloTriangleApplication app;
-
-	try {
-		app.run();
-	}
+	try 
+    {
+        HelloTriangleApplication app;
+    }
 	catch(const std::exception& e) {
 		std::cerr << e.what() << std::endl;
 		return EXIT_FAILURE;

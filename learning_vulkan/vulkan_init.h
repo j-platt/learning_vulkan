@@ -42,6 +42,7 @@ struct swap_chain_support_details
 constexpr uint32_t windowWidth = 800;
 constexpr uint32_t windowHeight = 600;
 constexpr VkQueueFlagBits queueRequirements = VK_QUEUE_GRAPHICS_BIT;
+constexpr int maxFramesInFlight = 2;
 
 vector<char const*> const validationLayers =
 {
@@ -91,3 +92,15 @@ vector<char> readFile(std::string const& fileName);
 VkShaderModule createShaderModule(vector<char> const& code, VkDevice const& logicalDevice);
 
 VkRenderPass createRenderPass(VkDevice const& logicalDevice, VkFormat const& format);
+
+vector<VkFramebuffer> createFreamebuffers(VkDevice const& logicalDevice, image_views const& imageViews, VkRenderPass const& renderPass, VkExtent2D const& extent);
+
+VkCommandPool createCommandPool(VkDevice const& logicalDevice, queue_family_index_t const& graphicsFamily);
+
+vector<VkCommandBuffer> createCommandBuffers(VkDevice const& logicalDevice,
+    VkCommandPool const& commandPool,
+    uint32_t const& frameBufferCount,
+    VkRenderPass const& renderPass,
+    vector<VkFramebuffer> const& frameBuffers,
+    VkExtent2D const& extent,
+    VkPipeline const& graphicsPipeline);

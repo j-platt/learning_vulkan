@@ -548,17 +548,120 @@ VkRenderPass createRenderPass(VkDevice const& logicalDevice, VkFormat const& for
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
 
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     renderPassInfo.attachmentCount = 1;
     renderPassInfo.pAttachments = &colorAttachment;
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &dependency;
 
     VkRenderPass reply;
     if(VK_FAILED(vkCreateRenderPass(logicalDevice, &renderPassInfo, nullptr, &reply)))
     {
         throw std::runtime_error("Failed to create the render pass.");
+    }
+    return reply;
+}
+
+vector<VkFramebuffer> createFreamebuffers(VkDevice const& logicalDevice, image_views const& imageViews, VkRenderPass const& renderPass, VkExtent2D const& extent)
+{
+    vector<VkFramebuffer> reply;
+    reply.resize(imageViews.size());
+
+    for(VkImageView const& imageView : imageViews)
+    {
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = renderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = &imageView;
+        framebufferInfo.width = extent.width;
+        framebufferInfo.height = extent.height;
+        framebufferInfo.layers = 1;
+
+        if(VK_FAILED(vkCreateFramebuffer(logicalDevice, &framebufferInfo, nullptr, &reply[&imageView - &imageViews[0]])))
+        {
+            throw std::runtime_error("Failed to create framebuffer.");
+        }
+    }
+    return reply;
+}
+
+VkCommandPool createCommandPool(VkDevice const& logicalDevice, queue_family_index_t const& graphicsFamily)
+{
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = graphicsFamily;
+
+    VkCommandPool reply;
+    if(VK_FAILED(vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &reply)))
+    {
+        throw std::runtime_error("Failed to create command pool.");
+    }
+    return reply;
+}
+
+vector<VkCommandBuffer> createCommandBuffers(VkDevice const& logicalDevice,
+    VkCommandPool const& commandPool,
+    uint32_t const& frameBufferCount,
+    VkRenderPass const& renderPass,
+    vector<VkFramebuffer> const& frameBuffers,
+    VkExtent2D const& extent,
+    VkPipeline const& graphicsPipeline)
+{
+    vector<VkCommandBuffer> reply;
+    reply.resize(frameBufferCount);
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = commandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = static_cast<uint32_t>(reply.size());
+
+    if(VK_FAILED(vkAllocateCommandBuffers(logicalDevice, &allocInfo, reply.data())))
+    {
+        throw std::runtime_error("Failed to allocate command buffers.");
+    }
+
+    for(VkCommandBuffer const& commandBuffer : reply)
+    {
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        if(VK_FAILED(vkBeginCommandBuffer(commandBuffer, &beginInfo)))
+        {
+            throw std::runtime_error("Failed to begin recording command buffer.");
+        }
+
+        VkRenderPassBeginInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassInfo.renderPass = renderPass;
+        renderPassInfo.framebuffer = frameBuffers[&commandBuffer - &reply[0]];
+        renderPassInfo.renderArea.offset = { 0,0 };
+        renderPassInfo.renderArea.extent = extent;
+        VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = &clearColor;
+
+        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+        vkCmdEndRenderPass(commandBuffer);
+        if(VK_FAILED(vkEndCommandBuffer(commandBuffer)))
+        {
+            throw std::runtime_error("Failed to record command buffer.");
+        }
     }
     return reply;
 }
